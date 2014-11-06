@@ -3,6 +3,8 @@
 
 #include <QMainWindow>
 
+#include <QComboBox>
+
 namespace Ui {
 class MainWindow;
 }
@@ -17,6 +19,15 @@ public:
 
 private:
     Ui::MainWindow *ui;
+
+    void start();
+    void stop();
+
+    void loadToComboBox(QComboBox *comboBox, const QString &fileName);
+    void saveFromComboBox(QComboBox *comboBox, const QString &fileName);
+
+    void loadData();
+    void saveData();
 
 private slots:
     void on_proFileButton_clicked();
