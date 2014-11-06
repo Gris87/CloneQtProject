@@ -12,3 +12,18 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
+
+void MainWindow::on_proFileButton_clicked()
+{
+
+}
+
+void MainWindow::on_destinationButton_clicked()
+{
+
+}
+
+void MainWindow::on_startButton_clicked()
+{
+
+}
