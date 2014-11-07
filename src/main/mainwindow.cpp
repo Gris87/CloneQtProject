@@ -7,9 +7,10 @@
 #include <QDir>
 #include <QTextStream>
 
-MainWindow::MainWindow(QWidget *parent) :
-    QMainWindow(parent),
-    ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent)
+    : QMainWindow(parent)
+    , ui(new Ui::MainWindow)
+    , mCloneThread(0)
 {
     ui->setupUi(this);
 
@@ -23,6 +24,8 @@ MainWindow::MainWindow(QWidget *parent) :
 
 MainWindow::~MainWindow()
 {
+    stopCloneThread();
+
     delete ui;
 }
 
@@ -98,6 +101,17 @@ void MainWindow::on_startButton_clicked()
     }
 }
 
+void MainWindow::stopCloneThread()
+{
+    if (mCloneThread)
+    {
+        mCloneThread->stop();
+        mCloneThread->wait();
+        delete mCloneThread;
+        mCloneThread = 0;
+    }
+}
+
 void MainWindow::start()
 {
     QString pathToProFile   = ui->proFileComboBox->currentText();
@@ -148,7 +162,8 @@ void MainWindow::start()
     ui->startButton->setText(tr("Stop"));
     ui->settingsGroupBox->setEnabled(false);
 
-    // TODO: Implement it
+    mCloneThread = new CloneThread(pathToProFile, destinationPath, this);
+    mCloneThread->start(QThread::TimeCriticalPriority);
 }
 
 void MainWindow::stop()
@@ -156,7 +171,7 @@ void MainWindow::stop()
     ui->startButton->setText(tr("Start"));
     ui->settingsGroupBox->setEnabled(true);
 
-    // TODO: Implement it
+    stopCloneThread();
 }
 
 void MainWindow::loadToComboBox(QComboBox *comboBox, const QString &fileName)

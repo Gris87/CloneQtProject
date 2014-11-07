@@ -5,6 +5,8 @@
 
 #include <QComboBox>
 
+#include "threads/clonethread.h"
+
 namespace Ui {
 class MainWindow;
 }
@@ -19,6 +21,9 @@ public:
 
 private:
     Ui::MainWindow *ui;
+    CloneThread    *mCloneThread;
+
+    void stopCloneThread();
 
     void start();
     void stop();
