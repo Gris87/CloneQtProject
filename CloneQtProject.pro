@@ -13,10 +13,12 @@ TEMPLATE = app
 
 SOURCES += \
             src/main.cpp\
-            src/main/mainwindow.cpp
+            src/main/mainwindow.cpp \
+            src/threads/clonethread.cpp
 
 HEADERS  += \
-            src/main/mainwindow.h
+            src/main/mainwindow.h \
+            src/threads/clonethread.h
 
 FORMS    += \
             src/main/mainwindow.ui
