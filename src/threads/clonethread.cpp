@@ -17,8 +17,21 @@ void CloneThread::run()
 {
     // TODO: Implement it
 
+    quint8 fileProgress  = 0;
+    quint8 totalProgress = 0;
+
     while (!mTerminated)
     {
-        msleep(1000);
+        msleep(200);
+
+        ++fileProgress;
+        totalProgress+=3;
+
+        emit OnProgressChanged(fileProgress, totalProgress);
+
+        if (totalProgress>100)
+        {
+            break;
+        }
     }
 }

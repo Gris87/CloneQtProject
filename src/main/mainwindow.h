@@ -35,6 +35,9 @@ private:
     void saveData();
 
 private slots:
+    void OnProgressChanged(const quint8 fileProgress, const quint8 totalProgress);
+    void OnCloneThreadFinished();
+
     void on_proFileButton_clicked();
     void on_destinationButton_clicked();
     void on_startButton_clicked();

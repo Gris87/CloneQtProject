@@ -29,6 +29,17 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+void MainWindow::OnProgressChanged(const quint8 fileProgress, const quint8 totalProgress)
+{
+    ui->fileProgressBar->setValue(fileProgress);
+    ui->totalProgressBar->setValue(totalProgress);
+}
+
+void MainWindow::OnCloneThreadFinished()
+{
+    stop();
+}
+
 void MainWindow::on_proFileButton_clicked()
 {
     QFileDialog dialog(this, tr("Open file"), ui->proFileComboBox->currentText());
@@ -105,6 +116,7 @@ void MainWindow::stopCloneThread()
 {
     if (mCloneThread)
     {
+        mCloneThread->blockSignals(true);
         mCloneThread->stop();
         mCloneThread->wait();
         delete mCloneThread;
@@ -159,19 +171,26 @@ void MainWindow::start()
         saveData();
     }
 
-    ui->startButton->setText(tr("Stop"));
     ui->settingsGroupBox->setEnabled(false);
+    ui->startButton->setText(tr("Stop"));    
 
     mCloneThread = new CloneThread(pathToProFile, destinationPath, this);
+    connect(mCloneThread, SIGNAL(OnProgressChanged(quint8,quint8)), this, SLOT(OnProgressChanged(quint8,quint8)));
+    connect(mCloneThread, SIGNAL(finished()), this, SLOT(OnCloneThreadFinished()));
     mCloneThread->start(QThread::TimeCriticalPriority);
 }
 
 void MainWindow::stop()
 {
-    ui->startButton->setText(tr("Start"));
+    stopCloneThread();
+
     ui->settingsGroupBox->setEnabled(true);
 
-    stopCloneThread();
+    ui->fileNameLabel->setText(tr("File: -"));
+    ui->fileProgressBar->setValue(0);
+    ui->totalProgressBar->setValue(0);
+
+    ui->startButton->setText(tr("Start"));
 }
 
 void MainWindow::loadToComboBox(QComboBox *comboBox, const QString &fileName)

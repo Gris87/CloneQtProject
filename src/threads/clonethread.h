@@ -18,6 +18,9 @@ private:
     bool    mTerminated;
     QString mPathToProFile;
     QString mDestinationPath;
+
+signals:
+    void OnProgressChanged(const quint8 fileProgress, const quint8 totalProgress);
 };
 
 #endif // CLONETHREAD_H
