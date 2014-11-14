@@ -1,5 +1,7 @@
 #include "clonethread.h"
 
+
+
 CloneThread::CloneThread(const QString &pathToProFile, const QString &destinationPath, QObject *parent)
     : QThread(parent)
     , mTerminated(false)

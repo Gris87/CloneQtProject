@@ -7,6 +7,8 @@
 
 #include "threads/clonethread.h"
 
+
+
 namespace Ui {
 class MainWindow;
 }
@@ -19,14 +21,19 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
 
+    bool batchClone(const QString &pathToProFile, const QString &destinationPath);
+
 private:
     Ui::MainWindow *ui;
     CloneThread    *mCloneThread;
+    bool            mBatchMode;
 
     void stopCloneThread();
 
-    void start();
+    bool start();
     void stop();
+
+    void insertTextToComboBox(QComboBox *comboBox, const QString &text);
 
     void loadToComboBox(QComboBox *comboBox, const QString &fileName);
     void saveFromComboBox(QComboBox *comboBox, const QString &fileName);

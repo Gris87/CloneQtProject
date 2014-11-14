@@ -3,6 +3,8 @@
 
 #include <QThread>
 
+
+
 class CloneThread : public QThread
 {
     Q_OBJECT

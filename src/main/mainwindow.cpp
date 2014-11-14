@@ -1,16 +1,19 @@
-#include "mainwindow.h"
-#include "ui_mainwindow.h"
-
 #include <QFileDialog>
 #include <QMessageBox>
 #include <QFile>
 #include <QDir>
 #include <QTextStream>
 
+#include "mainwindow.h"
+#include "ui_mainwindow.h"
+
+
+
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
     , mCloneThread(0)
+    , mBatchMode(false)
 {
     ui->setupUi(this);
 
@@ -57,17 +60,7 @@ void MainWindow::on_proFileButton_clicked()
 
     if (dialog.exec())
     {
-        QString selectedPath = QDir::toNativeSeparators(dialog.selectedFiles().at(0));
-
-        int index = ui->proFileComboBox->findText(selectedPath);
-
-        if (index >= 0)
-        {
-            ui->proFileComboBox->removeItem(index);
-        }
-
-        ui->proFileComboBox->insertItem(0, selectedPath);
-        ui->proFileComboBox->setCurrentIndex(0);
+        insertTextToComboBox(ui->proFileComboBox, QDir::toNativeSeparators(dialog.selectedFiles().at(0)));
 
         saveData();
     }
@@ -84,17 +77,7 @@ void MainWindow::on_destinationButton_clicked()
 
     if (dialog.exec())
     {
-        QString selectedPath = QDir::toNativeSeparators(dialog.selectedFiles().at(0));
-
-        int index = ui->destinationComboBox->findText(selectedPath);
-
-        if (index >= 0)
-        {
-            ui->destinationComboBox->removeItem(index);
-        }
-
-        ui->destinationComboBox->insertItem(0, selectedPath);
-        ui->destinationComboBox->setCurrentIndex(0);
+        insertTextToComboBox(ui->destinationComboBox, QDir::toNativeSeparators(dialog.selectedFiles().at(0)));
 
         saveData();
     }
@@ -112,6 +95,16 @@ void MainWindow::on_startButton_clicked()
     }
 }
 
+bool MainWindow::batchClone(const QString &pathToProFile, const QString &destinationPath)
+{
+    mBatchMode = true;
+
+    insertTextToComboBox(ui->proFileComboBox,     QDir::toNativeSeparators(pathToProFile));
+    insertTextToComboBox(ui->destinationComboBox, QDir::toNativeSeparators(destinationPath));
+
+    return start();
+}
+
 void MainWindow::stopCloneThread()
 {
     if (mCloneThread)
@@ -124,7 +117,7 @@ void MainWindow::stopCloneThread()
     }
 }
 
-void MainWindow::start()
+bool MainWindow::start()
 {
     QString pathToProFile   = ui->proFileComboBox->currentText();
     QString destinationPath = ui->destinationComboBox->currentText();
@@ -132,25 +125,25 @@ void MainWindow::start()
     if (pathToProFile == "")
     {
         QMessageBox::information(this, tr("Select pro file"), tr("Please select Qt project file"));
-        return;
+        return false;
     }
 
     if (destinationPath == "")
     {
         QMessageBox::information(this, tr("Select destination path"), tr("Please select destination path"));
-        return;
+        return false;
     }
 
     if (!QFile::exists(pathToProFile))
     {
         QMessageBox::information(this, tr("Pro file not exists"), tr("Qt project file \"%1\" is not found").arg(pathToProFile));
-        return;
+        return false;
     }
 
     if (!QDir(destinationPath).exists())
     {
         QMessageBox::information(this, tr("Destination path not exists"), tr("Destination path \"%1\" is not found").arg(destinationPath));
-        return;
+        return false;
     }
 
     if (
@@ -178,6 +171,8 @@ void MainWindow::start()
     connect(mCloneThread, SIGNAL(OnProgressChanged(quint8,quint8)), this, SLOT(OnProgressChanged(quint8,quint8)));
     connect(mCloneThread, SIGNAL(finished()), this, SLOT(OnCloneThreadFinished()));
     mCloneThread->start(QThread::TimeCriticalPriority);
+
+    return true;
 }
 
 void MainWindow::stop()
@@ -191,6 +186,24 @@ void MainWindow::stop()
     ui->totalProgressBar->setValue(0);
 
     ui->startButton->setText(tr("Start"));
+
+    if (mBatchMode)
+    {
+        close();
+    }
+}
+
+void MainWindow::insertTextToComboBox(QComboBox *comboBox, const QString &text)
+{
+    int index = comboBox->findText(text);
+
+    if (index >= 0)
+    {
+        comboBox->removeItem(index);
+    }
+
+    comboBox->insertItem(0, text);
+    comboBox->setCurrentIndex(0);
 }
 
 void MainWindow::loadToComboBox(QComboBox *comboBox, const QString &fileName)
@@ -210,7 +223,7 @@ void MainWindow::loadToComboBox(QComboBox *comboBox, const QString &fileName)
 
             if (line != "")
             {
-                comboBox->addItem(line);
+                comboBox->addItem(QDir::toNativeSeparators(line));
             }
         }
 
