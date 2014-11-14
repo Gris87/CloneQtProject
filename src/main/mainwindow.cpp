@@ -40,6 +40,11 @@ void MainWindow::OnProgressChanged(const quint8 fileProgress, const quint8 total
 
 void MainWindow::OnCloneThreadFinished()
 {
+    if (mCloneThread && mCloneThread->getError() != "")
+    {
+        QMessageBox::critical(this, tr("Error"), mCloneThread->getError());
+    }
+
     stop();
 }
 

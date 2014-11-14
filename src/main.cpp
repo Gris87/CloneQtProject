@@ -16,6 +16,15 @@ int main(int argc, char *argv[])
         {
             // Nothing
             w.show();
+
+            // For debug
+            /* */
+            //if (!w.batchClone("D:/Work/ePC_SIM/ePC_SIM.pro", "D:/Temp"))
+            if (!w.batchClone("D:/Projects/My/Qt/CloneQtProject/CloneQtProject.pro", "D:/Temp"))
+            {
+                return 1;
+            }
+            /* */
         }
         break;
         case 3:

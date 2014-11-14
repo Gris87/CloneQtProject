@@ -13,6 +13,8 @@ public:
 
     void stop();
 
+    const QString& getError() const;
+
 protected:
     void run();
 
@@ -20,6 +22,7 @@ private:
     bool    mTerminated;
     QString mPathToProFile;
     QString mDestinationPath;
+    QString mError;
 
 signals:
     void OnProgressChanged(const quint8 fileProgress, const quint8 totalProgress);
