@@ -7,6 +7,10 @@
 
 
 
+#define BUFFER_SIZE 4096
+
+
+
 CloneThread::CloneThread(const QString &pathToProFile, const QString &destinationPath, QObject *parent)
     : QThread(parent)
     , mTerminated(false)
@@ -25,181 +29,298 @@ void CloneThread::stop()
     mTerminated = true;
 }
 
-void CloneThread::run()
+bool CloneThread::getFiles(QStringList &files)
 {
-    QStringList files;
+    QFile file(mPathToProFile);
 
-    // Get files list from pro file
+    if (file.exists())
     {
-        QFile file(mPathToProFile);
-
-        if (file.exists())
+        if (!file.open(QIODevice::ReadOnly))
         {
-            file.open(QIODevice::ReadOnly);
+            mError = tr("Impossible to open pro file");
+            qCritical() << "Error:" << mError;
 
-            QTextStream stream(&file);
-            stream.setCodec("UTF-8");
+            return false;
+        }
 
-            bool addingMode = false;
+        QTextStream stream(&file);
+        stream.setCodec("UTF-8");
 
-            while (!mTerminated && !stream.atEnd())
+        bool addingMode = false;
+
+        while (!mTerminated && !stream.atEnd())
+        {
+            QString line = stream.readLine().simplified();
+
+            if (
+                !addingMode
+                &&
+                (
+                 line.startsWith("SOURCES")
+                 ||
+                 line.startsWith("HEADERS")
+                 ||
+                 line.startsWith("FORMS")
+                )
+               )
             {
-                QString line = stream.readLine().simplified();
+                int index = line.indexOf("=");
 
-                if (
-                    !addingMode
-                    &&
-                    (
-                     line.startsWith("SOURCES")
-                     ||
-                     line.startsWith("HEADERS")
-                     ||
-                     line.startsWith("FORMS")
-                    )
-                   )
+                if (index < 0)
                 {
-                    int index = line.indexOf("=");
+                    mError = tr("There is no \"=\" sign in line: %1").arg(line);
+                    qCritical() << "Error:" << mError;
 
-                    if (index < 0)
-                    {
-                        mError = tr("There is no \"=\" sign in line: %1").arg(line);
-                        qCritical() << "Error:" << mError;
-
-                        return;
-                    }
-
-                    line.remove(0, index + 1);
-
-                    addingMode = true;
+                    return false;
                 }
 
-                if (addingMode)
-                {
-                    QString newFile;
+                line.remove(0, index + 1);
 
-                    if (line.endsWith("\\"))
-                    {
-                        line.remove(line.length() - 1, 1);
-                        newFile = line.trimmed();
-                    }
-                    else
-                    {
-                        addingMode = false;
-                        newFile = line;
-                    }
-
-                    if (newFile != "")
-                    {
-                        files.append(newFile);
-                    }
-                }
+                addingMode = true;
             }
 
-            file.close();
+            if (addingMode)
+            {
+                QString newFile;
+
+                if (line.endsWith("\\"))
+                {
+                    line.remove(line.length() - 1, 1);
+                }
+                else
+                {
+                    addingMode = false;
+                }
+
+                newFile = line.trimmed();
+
+                if (newFile != "")
+                {
+                    files.append(newFile);
+                }
+            }
+        }
+
+        file.close();
+
+        if (files.length() == 0)
+        {
+            mError = tr("There is no files in pro file");
+            qCritical() << "Error:" << mError;
+
+            return false;
+        }
+
+        files.sort(Qt::CaseInsensitive);
+    }
+    else
+    {
+        mError = tr("Pro file not found");
+        qCritical() << "Error:" << mError;
+
+        return false;
+    }
+
+    return !mTerminated;
+}
+
+bool CloneThread::getAbsolutePaths(const QStringList &files, QStringList &absoluteSourceFiles, QStringList &absoluteDestinationFiles)
+{
+    if (QDir::isAbsolutePath(files.at(0)))
+    {
+        for (int i=1; !mTerminated && i<files.length(); ++i)
+        {
+            if (!QDir::isAbsolutePath(files.at(i)))
+            {
+                mError = tr("All paths should be absolute");
+                qCritical() << "Error:" << mError;
+
+                return false;
+            }
+        }
+
+        absoluteSourceFiles = files;
+
+        // TODO: Implement it
+    }
+    else
+    {
+        for (int i=1; !mTerminated && i<files.length(); ++i)
+        {
+            if (QDir::isAbsolutePath(files.at(i)))
+            {
+                mError = tr("All paths should be relative");
+                qCritical() << "Error:" << mError;
+
+                return false;
+            }
+        }
+
+        QString projectFolder = mPathToProFile.left(mPathToProFile.lastIndexOf("/"));
+
+        for (int i=0; !mTerminated && i<files.length(); ++i)
+        {
+            const QString &file = files.at(i);
+
+            absoluteSourceFiles.append(     projectFolder    + "/" + file);
+            absoluteDestinationFiles.append(mDestinationPath + "/" + file);
         }
     }
 
-    if (mTerminated)
-    {
-        return;
-    }
+    return !mTerminated;
+}
 
-    if (files.length() == 0)
-    {
-        mError = tr("There is no files in pro file");
-        qCritical() << "Error:" << mError;
-
-        return;
-    }
-
-    files.sort(Qt::CaseInsensitive);
-
+void CloneThread::printLists(const QStringList &files, const QStringList &absoluteSourceFiles, const QStringList &absoluteDestinationFiles)
+{
     qDebug() << "Files to clone:";
 
-    for (int i=0; i<files.length(); ++i)
+    for (int i=0; !mTerminated && i<files.length(); ++i)
     {
         qDebug() << files.at(i);
     }
 
     qDebug() << "";
-
-    QStringList absoluteSourceFiles;
-    QStringList absoluteDestinationFiles;
-
-    // Get absolute source and destination paths
-    {
-        if (QDir::isAbsolutePath(files.at(0)))
-        {
-            for (int i=1; i<files.length(); ++i)
-            {
-                if (!QDir::isAbsolutePath(files.at(i)))
-                {
-                    mError = tr("All paths should be absolute");
-                    qCritical() << "Error:" << mError;
-
-                    return;
-                }
-            }
-
-            absoluteSourceFiles = files;
-        }
-        else
-        {
-            QString projectFolder = mPathToProFile.left(mPathToProFile.lastIndexOf("/"));
-
-            for (int i=0; i<files.length(); ++i)
-            {
-                const QString &file = files.at(i);
-
-                absoluteSourceFiles.append(     projectFolder    + "/" + file);
-                absoluteDestinationFiles.append(mDestinationPath + "/" + file);
-            }
-        }
-    }
-
     qDebug() << "Absolute source files:";
 
-    for (int i=0; i<absoluteSourceFiles.length(); ++i)
+    for (int i=0; !mTerminated && i<absoluteSourceFiles.length(); ++i)
     {
         qDebug() << absoluteSourceFiles.at(i);
     }
 
     qDebug() << "";
-
     qDebug() << "Absolute destination files:";
 
-    for (int i=0; i<absoluteDestinationFiles.length(); ++i)
+    for (int i=0; !mTerminated && i<absoluteDestinationFiles.length(); ++i)
     {
         qDebug() << absoluteDestinationFiles.at(i);
     }
 
     qDebug() << "";
+}
 
-    quint64 totalSize = 0;
+quint64 CloneThread::getTotalSize(const QStringList &absoluteSourceFiles)
+{
+    quint64 res = 0;
 
-    // Get total size
+    for (int i=0; !mTerminated && i<absoluteSourceFiles.length(); ++i)
     {
-        // TODO: Implement it
+        res += QFile(absoluteSourceFiles.at(i)).size();
     }
 
-    // TODO: Implement it
+    return res;
+}
 
-    quint8 fileProgress  = 0;
-    quint8 totalProgress = 0;
+bool CloneThread::cloneFiles(const QStringList &absoluteSourceFiles, const QStringList &absoluteDestinationFiles, const quint64 totalSize)
+{
+    char buffer[BUFFER_SIZE];
 
-    while (!mTerminated)
+    quint64 totalProgress = 0;
+
+    for (int i=0; !mTerminated && i<absoluteSourceFiles.length(); ++i)
     {
-        msleep(20);
+        QString srcFileName  = absoluteSourceFiles.at(i);
+        QString destFileName = absoluteDestinationFiles.at(i);
 
-        ++fileProgress;
-        totalProgress += 3;
+        QFile srcFile(srcFileName);
+        QFile destFile(destFileName);
 
-        emit OnProgressChanged(fileProgress, totalProgress);
-
-        if (totalProgress>100)
+        if (!srcFile.exists())
         {
-            break;
+            mError = tr("File not found: %1").arg(QDir::toNativeSeparators(srcFileName));
+            qCritical() << "Error:" << mError;
+
+            return false;
         }
+
+        QString destFilePath = destFileName.left(destFileName.lastIndexOf("/"));
+
+        if (!QDir().mkpath(destFilePath))
+        {
+            mError = tr("Impossible to create path: %1").arg(QDir::toNativeSeparators(destFilePath));
+            qCritical() << "Error:" << mError;
+
+            return false;
+        }
+
+        if (!srcFile.open(QIODevice::ReadOnly))
+        {
+            mError = tr("Impossible to open file: %1").arg(QDir::toNativeSeparators(srcFileName));
+            qCritical() << "Error:" << mError;
+
+            return false;
+        }
+
+        if (!destFile.open(QIODevice::WriteOnly))
+        {
+            mError = tr("Impossible to create file: %1").arg(QDir::toNativeSeparators(destFileName));
+            qCritical() << "Error:" << mError;
+
+            return false;
+        }
+
+        quint64 fileProgress = 0;
+        quint64 fileSize = srcFile.size();
+
+        while (!mTerminated && !srcFile.atEnd())
+        {
+            qint64 bytes = srcFile.read(buffer, BUFFER_SIZE);
+
+            if (bytes < 0)
+            {
+                mError = tr("Impossible to read file: %1").arg(QDir::toNativeSeparators(srcFileName));
+                qCritical() << "Error:" << mError;
+
+                return false;
+            }
+
+            if (destFile.write(buffer, bytes) != bytes)
+            {
+                mError = tr("Impossible to write file: %1").arg(QDir::toNativeSeparators(destFileName));
+                qCritical() << "Error:" << mError;
+
+                return false;
+            }
+
+            fileProgress  += bytes;
+            totalProgress += bytes;
+
+            if (fileSize && totalSize)
+            {
+                emit OnProgressChanged(fileProgress * 100 / fileSize, totalProgress * 100 / totalSize);
+            }
+        }
+
+        srcFile.close();
+        destFile.close();
+    }
+
+    return !mTerminated;
+}
+
+void CloneThread::run()
+{
+    QStringList files;
+    QStringList absoluteSourceFiles;
+    QStringList absoluteDestinationFiles;
+
+    if (!getFiles(files))
+    {
+        return;
+    }
+
+    if (!getAbsolutePaths(files, absoluteSourceFiles, absoluteDestinationFiles))
+    {
+        return;
+    }
+
+    printLists(files, absoluteSourceFiles, absoluteDestinationFiles);
+
+    quint64 totalSize = getTotalSize(absoluteSourceFiles);
+    qDebug() << "Total size: " << totalSize;
+
+    if (!cloneFiles(absoluteSourceFiles, absoluteDestinationFiles, totalSize))
+    {
+        return;
     }
 }
 

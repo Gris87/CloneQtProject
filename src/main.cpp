@@ -20,7 +20,8 @@ int main(int argc, char *argv[])
             // For debug
             /* */
             //if (!w.batchClone("D:/Work/ePC_SIM/ePC_SIM.pro", "D:/Temp"))
-            if (!w.batchClone("D:/Projects/My/Qt/CloneQtProject/CloneQtProject.pro", "D:/Temp"))
+            //if (!w.batchClone("D:/Projects/My/Qt/CloneQtProject/CloneQtProject.pro", "D:/Temp"))
+            if (!w.batchClone("D:/Projects/My/Qt/CloneQtProject/CloneQtProject.pro", "E:/Temp"))
             {
                 return 1;
             }
