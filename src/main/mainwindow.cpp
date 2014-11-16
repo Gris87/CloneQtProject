@@ -32,8 +32,10 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::OnProgressChanged(const quint8 fileProgress, const quint8 totalProgress)
+void MainWindow::OnProgressChanged(const QString &file, const quint8 fileProgress, const quint8 totalProgress)
 {
+    ui->fileNameLabel->setText(tr("File: %1").arg(QDir::toNativeSeparators(file)));
+
     ui->fileProgressBar->setValue(fileProgress);
     ui->totalProgressBar->setValue(totalProgress);
 }
@@ -173,7 +175,7 @@ bool MainWindow::start()
     ui->startButton->setText(tr("Stop"));    
 
     mCloneThread = new CloneThread(pathToProFile, destinationPath, this);
-    connect(mCloneThread, SIGNAL(OnProgressChanged(quint8,quint8)), this, SLOT(OnProgressChanged(quint8,quint8)));
+    connect(mCloneThread, SIGNAL(OnProgressChanged(QString,quint8,quint8)), this, SLOT(OnProgressChanged(QString,quint8,quint8)));
     connect(mCloneThread, SIGNAL(finished()), this, SLOT(OnCloneThreadFinished()));
     mCloneThread->start(QThread::TimeCriticalPriority);
 

@@ -1,6 +1,7 @@
 #include <QFile>
 #include <QDir>
 #include <QTextStream>
+#include <QDateTime>
 #include <QDebug>
 
 #include "clonethread.h"
@@ -215,11 +216,14 @@ bool CloneThread::cloneFiles(const QStringList &absoluteSourceFiles, const QStri
     char buffer[BUFFER_SIZE];
 
     quint64 totalProgress = 0;
+    qint64 timeStart = QDateTime::currentMSecsSinceEpoch();
 
     for (int i=0; !mTerminated && i<absoluteSourceFiles.length(); ++i)
     {
         QString srcFileName  = absoluteSourceFiles.at(i);
         QString destFileName = absoluteDestinationFiles.at(i);
+
+        qDebug() << "Cloning:" << srcFileName;
 
         QFile srcFile(srcFileName);
         QFile destFile(destFileName);
@@ -286,7 +290,14 @@ bool CloneThread::cloneFiles(const QStringList &absoluteSourceFiles, const QStri
 
             if (fileSize && totalSize)
             {
-                emit OnProgressChanged(fileProgress * 100 / fileSize, totalProgress * 100 / totalSize);
+                qint64 curTime = QDateTime::currentMSecsSinceEpoch();
+
+                if (curTime > timeStart + 1000)
+                {
+                    timeStart = curTime;
+
+                    emit OnProgressChanged(srcFileName, fileProgress * 100 / fileSize, totalProgress * 100 / totalSize);
+                }
             }
         }
 

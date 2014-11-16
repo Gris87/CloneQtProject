@@ -42,7 +42,7 @@ private:
     void saveData();
 
 private slots:
-    void OnProgressChanged(const quint8 fileProgress, const quint8 totalProgress);
+    void OnProgressChanged(const QString &file, const quint8 fileProgress, const quint8 totalProgress);
     void OnCloneThreadFinished();
 
     void on_proFileButton_clicked();

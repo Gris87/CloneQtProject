@@ -21,7 +21,8 @@ int main(int argc, char *argv[])
             /* */
             //if (!w.batchClone("D:/Work/ePC_SIM/ePC_SIM.pro", "D:/Temp"))
             //if (!w.batchClone("D:/Projects/My/Qt/CloneQtProject/CloneQtProject.pro", "D:/Temp"))
-            if (!w.batchClone("D:/Projects/My/Qt/CloneQtProject/CloneQtProject.pro", "E:/Temp"))
+            //if (!w.batchClone("D:/Projects/My/Qt/CloneQtProject/CloneQtProject.pro", "E:/Temp"))
+            if (!w.batchClone("E:/Work/master_epc/ePC_SIM.pro", "E:/Temp"))
             {
                 return 1;
             }
