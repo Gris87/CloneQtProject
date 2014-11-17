@@ -69,7 +69,7 @@ bool CloneThread::getFiles(QStringList &files)
 
                 if (index < 0)
                 {
-                    mError = tr("There is no \"=\" sign in line: %1").arg(line);
+                    mError = tr("There is no \"=\" sign in pro file in the line: %1").arg(line);
                     qCritical() << "Error:" << mError;
 
                     return false;
@@ -125,6 +125,43 @@ bool CloneThread::getFiles(QStringList &files)
     return !mTerminated;
 }
 
+QString CloneThread::getCommonPath(const QStringList &files)
+{
+    const QString &firstFile = files.at(0);
+
+    int slashPos = firstFile.length();
+
+    while (!mTerminated)
+    {
+        slashPos = firstFile.lastIndexOf("/", slashPos - 1);
+
+        if (slashPos < 0)
+        {
+            break;
+        }
+
+        QString base = firstFile.left(slashPos + 1);
+
+        bool good = true;
+
+        for (int i=1; !mTerminated && i<files.length(); ++i)
+        {
+            if (!files.at(i).startsWith(base))
+            {
+                good = false;
+                break;
+            }
+        }
+
+        if (good)
+        {
+            return base;
+        }
+    }
+
+    return "";
+}
+
 bool CloneThread::getAbsolutePaths(const QStringList &files, QStringList &absoluteSourceFiles, QStringList &absoluteDestinationFiles)
 {
     if (QDir::isAbsolutePath(files.at(0)))
@@ -140,9 +177,28 @@ bool CloneThread::getAbsolutePaths(const QStringList &files, QStringList &absolu
             }
         }
 
+        QString commonPath   = getCommonPath(files);
+        int     commonLength = commonPath.length();
+
+        if (mTerminated)
+        {
+            return false;
+        }
+
+        if (commonLength == 0)
+        {
+            mError = tr("There is no common path in source files");
+            qCritical() << "Error:" << mError;
+
+            return false;
+        }
+
         absoluteSourceFiles = files;
 
-        // TODO: Implement it
+        for (int i=0; !mTerminated && i<files.length(); ++i)
+        {
+            absoluteDestinationFiles.append(mDestinationPath + "/" + files.at(i).mid(commonLength));
+        }
     }
     else
     {
@@ -211,8 +267,65 @@ quint64 CloneThread::getTotalSize(const QStringList &absoluteSourceFiles)
     return res;
 }
 
+bool CloneThread::deleteFolder(const QString &folder)
+{
+    QDir folderDir(folder);
+
+    if (!folderDir.exists())
+    {
+        return true;
+    }
+
+    QFileInfoList files = folderDir.entryInfoList(QDir::AllEntries | QDir::NoDotAndDotDot);
+
+    for (int i=0; i<files.length(); ++i)
+    {
+        QString filePath = files.at(i).absoluteFilePath();
+
+        if (files.at(i).isDir())
+        {
+            if (!deleteFolder(filePath))
+            {
+                return false;
+            }
+        }
+        else
+        {
+            qDebug() << "Deleting:" << filePath;
+
+            if (!QFile::remove(filePath))
+            {
+                mError = tr("Impossible to remove file: %1").arg(QDir::toNativeSeparators(filePath));
+                qCritical() << "Error:" << mError;
+
+                return false;
+            }
+        }
+    }
+
+    qDebug() << "Deleting folder:" << folder;
+
+    if (!QDir().rmdir(folder))
+    {
+        mError = tr("Impossible to remove folder: %1").arg(QDir::toNativeSeparators(folder));
+        qCritical() << "Error:" << mError;
+
+        return false;
+    }
+
+    return !mTerminated;
+}
+
 bool CloneThread::cloneFiles(const QStringList &absoluteSourceFiles, const QStringList &absoluteDestinationFiles, const quint64 totalSize)
 {
+    if (absoluteSourceFiles.length() != absoluteDestinationFiles.length())
+    {
+        mError = tr("Amount of source files not equals to amount of destination files");
+        qCritical() << "Error:" << mError;
+
+        return false;
+    }
+
     char buffer[BUFFER_SIZE];
 
     quint64 totalProgress = 0;
@@ -313,25 +426,55 @@ void CloneThread::run()
     QStringList files;
     QStringList absoluteSourceFiles;
     QStringList absoluteDestinationFiles;
+    quint64     totalSize;
 
-    if (!getFiles(files))
+    // Searching
     {
-        return;
+        emit OnProgressChanged(tr("Searching..."), 0, 0);
+
+        if (!getFiles(files))
+        {
+            return;
+        }
+
+        if (!getAbsolutePaths(files, absoluteSourceFiles, absoluteDestinationFiles))
+        {
+            return;
+        }
+
+        printLists(files, absoluteSourceFiles, absoluteDestinationFiles);
     }
 
-    if (!getAbsolutePaths(files, absoluteSourceFiles, absoluteDestinationFiles))
+    // Calculating
     {
-        return;
+        emit OnProgressChanged(tr("Calculating..."), 0, 0);
+
+        totalSize = getTotalSize(absoluteSourceFiles);
+
+        if (mTerminated)
+        {
+            return;
+        }
+
+        qDebug() << "Total size: " << totalSize;
     }
 
-    printLists(files, absoluteSourceFiles, absoluteDestinationFiles);
-
-    quint64 totalSize = getTotalSize(absoluteSourceFiles);
-    qDebug() << "Total size: " << totalSize;
-
-    if (!cloneFiles(absoluteSourceFiles, absoluteDestinationFiles, totalSize))
+    // Deleting
     {
-        return;
+        emit OnProgressChanged(tr("Deleting old folder..."), 0, 0);
+
+        if (!deleteFolder(mDestinationPath))
+        {
+            return;
+        }
+    }
+
+    // Cloning
+    {
+        if (!cloneFiles(absoluteSourceFiles, absoluteDestinationFiles, totalSize))
+        {
+            return;
+        }
     }
 }
 

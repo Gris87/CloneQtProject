@@ -34,7 +34,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::OnProgressChanged(const QString &file, const quint8 fileProgress, const quint8 totalProgress)
 {
-    ui->fileNameLabel->setText(tr("File: %1").arg(QDir::toNativeSeparators(file)));
+    ui->fileNameLabel->setText(QDir::toNativeSeparators(file));
 
     ui->fileProgressBar->setValue(fileProgress);
     ui->totalProgressBar->setValue(totalProgress);
@@ -188,7 +188,7 @@ void MainWindow::stop()
 
     ui->settingsGroupBox->setEnabled(true);
 
-    ui->fileNameLabel->setText(tr("File: -"));
+    ui->fileNameLabel->setText("-");
     ui->fileProgressBar->setValue(0);
     ui->totalProgressBar->setValue(0);
 
