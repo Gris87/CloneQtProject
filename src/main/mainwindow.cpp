@@ -172,7 +172,7 @@ bool MainWindow::start()
     }
 
     ui->settingsGroupBox->setEnabled(false);
-    ui->startButton->setText(tr("Stop"));    
+    ui->startButton->setText(tr("Stop"));
 
     mCloneThread = new CloneThread(pathToProFile, destinationPath, this);
     connect(mCloneThread, SIGNAL(OnProgressChanged(QString,quint8,quint8)), this, SLOT(OnProgressChanged(QString,quint8,quint8)));
